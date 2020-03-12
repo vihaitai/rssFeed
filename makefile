@@ -1,4 +1,4 @@
-home=/home/ubuntu/rssFeed
+home=/Users/haitai/repo/rssFeed
 
 server_bin:
 	@cd ${home}

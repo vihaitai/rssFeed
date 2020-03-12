@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"rssFeed/db"
+	"rssFeed/seed"
 	"time"
 
 	"github.com/gorilla/feeds"
@@ -17,7 +18,7 @@ func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
-func selectArticles(conn *sql.DB, platform, feedID string) []db.Article {
+func selectArticles(conn *sql.DB, s seed.Seeder) []db.Article {
 	query := fmt.Sprintf("select id, title, link, description, created_at, feed_name from articles where platform=? and feed_id=? order by created_at desc")
 	stmt, err := conn.Prepare(query)
 	if err != nil {
@@ -25,7 +26,7 @@ func selectArticles(conn *sql.DB, platform, feedID string) []db.Article {
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(platform, feedID)
+	rows, err := stmt.Query(s.Platform(), s.Identifier())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,11 +50,12 @@ func rssListHandler(writer http.ResponseWriter, req *http.Request) {
 	platform := query["platform"][0]
 	format := query["format"][0]
 	feedID := query["feed"][0]
+	s := seed.NewSeeder(platform, feedID, "")
 	feed := &feeds.Feed{
-		Link: &feeds.Link{Href: fmt.Sprintf("https://zhuanlan.zhihu.com/%s", feedID)},
+		Link: &feeds.Link{Href: s.Home()},
 	}
 	var feedItems []*feeds.Item
-	articles := selectArticles(db.Conn, platform, feedID)
+	articles := selectArticles(db.Conn, s)
 	for _, a := range articles {
 		if feed.Title == "" {
 			feed.Title = a.FeedName

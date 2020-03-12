@@ -1,4 +1,4 @@
-package zhihu
+package fetcher
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"rssFeed/db"
+	"rssFeed/seed"
 	"rssFeed/slack"
 )
 
@@ -14,13 +15,11 @@ func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
-const platform = "zhihu"
-
-func getLastestStored(feedID string) string {
-	query := fmt.Sprintf("select title from articles where feed_id='%s' and platform='%s' order by created_at desc limit 1", feedID, platform)
+func getLastestStored(s seed.Seeder) string {
+	query := fmt.Sprintf("select title from articles where feed_id='%s' and platform='%s' order by created_at desc limit 1", s.Identifier(), s.Platform())
 	rows, err := db.Conn.Query(query)
 	if err != nil {
-		log.Printf("query articles with feedID %s error %+v", feedID, err)
+		log.Printf("query articles with feedID %s error %+v", s.Identifier(), err)
 		return ""
 	}
 	defer rows.Close()
@@ -33,9 +32,9 @@ func getLastestStored(feedID string) string {
 	return a
 }
 
-func fetchArticles(feedName, feedID, url string) ([]*db.Article, bool) {
-	log.Printf("[%s] fetch %s", feedName, url)
-	resp, err := http.Get(url)
+func fetchArticles(s seed.Seeder, offset, limit int) ([]*db.Article, bool) {
+	log.Printf("[%s] fetch %s", s.Name(), s.Link(offset, limit))
+	resp, err := http.Get(s.Link(offset, limit))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,9 +58,9 @@ func fetchArticles(feedName, feedID, url string) ([]*db.Article, bool) {
 		link := v["url"].(string)
 		created := int64(v["created"].(float64))
 		articles = append(articles, &db.Article{
-			FeedName:    feedName,
-			FeedID:      feedID,
-			Platform:    platform,
+			FeedName:    s.Name(),
+			FeedID:      s.Identifier(),
+			Platform:    s.Platform(),
 			Title:       v["title"].(string),
 			Link:        link,
 			Description: v["excerpt"].(string),
@@ -78,16 +77,14 @@ func fetchArticles(feedName, feedID, url string) ([]*db.Article, bool) {
 	return articles, hasMore
 }
 
-func run(feedID, feedName string) {
-	lastest := getLastestStored(feedID)
+func run(s seed.Seeder) {
+	lastest := getLastestStored(s)
 	log.Printf("get latest stored %s\n", lastest)
 
 	offset := 0
 	hasMore := true
 	for hasMore {
-		zhihuAPI := fmt.Sprintf("https://zhuanlan.zhihu.com/api/columns/%s/articles", feedID)
-		articleURL := fmt.Sprintf("%s?offset=%d&limit=10", zhihuAPI, offset)
-		items, next := fetchArticles(feedName, feedID, articleURL)
+		items, next := fetchArticles(s, offset, 10)
 		if items != nil {
 			offset += len(items)
 		}
@@ -125,6 +122,6 @@ func run(feedID, feedName string) {
 }
 
 func Sync() {
-	run("prattle", "迷思")
-	run("milocode", "Milo的编程")
+	run(seed.NewSeeder("zhihu", "prattle", "迷思"))
+	run(seed.NewSeeder("zhihu", "milocode", "Milo的编程"))
 }
