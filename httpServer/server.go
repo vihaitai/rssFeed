@@ -2,20 +2,27 @@ package httpServer
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"rssFeed/db"
 	"rssFeed/seed"
 	"time"
 
 	"github.com/gorilla/feeds"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/slack-go/slack"
 )
+
+var signingSecret string
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	signingSecret = os.Getenv("slack-signing-secret")
 }
 
 func selectArticles(conn *sql.DB, s seed.Seeder) []db.Article {
@@ -87,6 +94,42 @@ func rssListHandler(writer http.ResponseWriter, req *http.Request) {
 	io.WriteString(writer, payload)
 }
 
+func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
+	verifier, err := slack.NewSecretsVerifier(r.Header, signingSecret)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	r.Body = ioutil.NopCloser(io.TeeReader(r.Body, &verifier))
+	s, err := slack.SlashCommandParse(r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err = verifier.Ensure(); err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	switch s.Command {
+	case "/echo":
+		params := &slack.Msg{Text: s.Text}
+		b, err := json.Marshal(params)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(b)
+	default:
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+//Start 开启服务
 func Start(endpoint string) {
 	log.Printf("[DEBUG]start http server on %s\n", endpoint)
 	http.HandleFunc("/rss", rssListHandler)
