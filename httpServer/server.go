@@ -97,6 +97,7 @@ func rssListHandler(writer http.ResponseWriter, req *http.Request) {
 func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 	verifier, err := slack.NewSecretsVerifier(r.Header, signingSecret)
 	if err != nil {
+		log.Printf("slack.NewSecretsVerifier %+v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -104,11 +105,13 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = ioutil.NopCloser(io.TeeReader(r.Body, &verifier))
 	s, err := slack.SlashCommandParse(r)
 	if err != nil {
+		log.Printf("slack.SlashCommandParse %+v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	if err = verifier.Ensure(); err != nil {
+		log.Printf("verifier.Ensure %+v\n", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
