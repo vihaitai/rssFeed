@@ -30,7 +30,7 @@ func handleSlashKeyword(keyword string) ([]byte, error) {
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(keyword)
+	rows, err := stmt.Query("%" + keyword + "%")
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -47,7 +47,7 @@ func handleSlashKeyword(keyword string) ([]byte, error) {
 		}
 		textBlockObject := slack.NewTextBlockObject("mrkdwn", "You have a new test: *Hi there* :wave:", false, false)
 		sectionBlock := slack.NewSectionBlock(textBlockObject, nil, nil)
-		slack.AddBlockMessage(msg, sectionBlock)
+		msg = slack.AddBlockMessage(msg, sectionBlock)
 	}
 	b, err := json.Marshal(msg)
 	return b, err
@@ -82,7 +82,7 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		log.Printf("keyword: %s\n", string(b))
+		log.Printf("reponse: %s\n", string(b))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(b)
 	default:
