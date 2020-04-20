@@ -22,7 +22,7 @@ func init() {
 
 func handleSlashKeyword(keyword string) ([]byte, error) {
 	conn := db.Conn
-	query := fmt.Sprintf("select id, title, link, description, created_at, feed_name from articles where title like %%?%% limit 10")
+	query := fmt.Sprintf("select id, title, link, description, created_at, feed_name from articles where title like ? limit 10")
 	stmt, err := conn.Prepare(query)
 	if err != nil {
 		log.Fatalf("prepare %s error %+v", query, err)
@@ -37,7 +37,7 @@ func handleSlashKeyword(keyword string) ([]byte, error) {
 	}
 	defer rows.Close()
 
-	var msg = slack.Message{}
+	var sblocks []*slack.SectionBlock
 	for rows.Next() {
 		var a = db.Article{}
 		err := rows.Scan(&a.ID, &a.Title, &a.Link, &a.Description, &a.CreatedAt, &a.FeedName)
@@ -45,11 +45,20 @@ func handleSlashKeyword(keyword string) ([]byte, error) {
 			log.Printf("article scan error %+v", err)
 			continue
 		}
-		textBlockObject := slack.NewTextBlockObject("mrkdwn", "You have a new test: *Hi there* :wave:", false, false)
+		content := fmt.Sprintf("<%s|%s>", a.Link, a.Title)
+		textBlockObject := slack.NewTextBlockObject("mrkdwn", content, false, false)
 		sectionBlock := slack.NewSectionBlock(textBlockObject, nil, nil)
-		msg = slack.AddBlockMessage(msg, sectionBlock)
+		sblocks = append(sblocks, sectionBlock)
 	}
-	b, err := json.Marshal(msg)
+	if len(sblocks) == 0 {
+		var msg = slack.Message{}
+		for i := range sblocks {
+			msg = slack.AddBlockMessage(msg, sblocks[i])
+		}
+		b, err := json.Marshal(msg)
+		return b, err
+	}
+	b, err := json.Marshal(slack.Msg{Text: "没有关联的内容"})
 	return b, err
 }
 
