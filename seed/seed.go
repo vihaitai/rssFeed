@@ -11,7 +11,7 @@ type Seeder interface {
 func NewSeeder(platform, id string, name string) Seeder {
 	switch platform {
 	case "zhihu":
-		return &Zhihu{ID: id, Zhuanlan: name}
+		return &Zhihu{id: id, zhuanlan: name}
 	default:
 		return nil
 	}
