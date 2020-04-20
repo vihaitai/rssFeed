@@ -114,7 +114,7 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch s.Command {
-	case "/echo":
+	case "/keyword":
 		params := &slack.Msg{Text: s.Text}
 		b, err := json.Marshal(params)
 		if err != nil {
@@ -125,6 +125,7 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write(b)
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(s.Command))
 		return
 	}
 }
