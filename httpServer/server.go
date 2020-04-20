@@ -22,7 +22,7 @@ var signingSecret string
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	signingSecret = os.Getenv("slack-signing-secret")
+	signingSecret = os.Getenv("slackSigningSecret")
 }
 
 func selectArticles(conn *sql.DB, s seed.Seeder) []db.Article {
@@ -133,6 +133,7 @@ func slashCommandHandler(w http.ResponseWriter, r *http.Request) {
 func Start(endpoint string) {
 	log.Printf("[DEBUG]start http server on %s\n", endpoint)
 	http.HandleFunc("/rss", rssListHandler)
+	http.HandleFunc("/slash", slashCommandHandler)
 
 	if err := http.ListenAndServe(endpoint, nil); err != nil {
 		log.Fatal(err)
