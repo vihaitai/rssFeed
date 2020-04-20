@@ -50,7 +50,7 @@ func handleSlashKeyword(keyword string) ([]byte, error) {
 		sectionBlock := slack.NewSectionBlock(textBlockObject, nil, nil)
 		sblocks = append(sblocks, sectionBlock)
 	}
-	if len(sblocks) == 0 {
+	if len(sblocks) != 0 {
 		var msg = slack.Message{}
 		for i := range sblocks {
 			msg = slack.AddBlockMessage(msg, sblocks[i])
